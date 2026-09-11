@@ -20,6 +20,14 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+app:
+  upload:
+    root-dir: ./data/images
 
 server:
   port: 8086

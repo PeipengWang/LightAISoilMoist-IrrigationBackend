@@ -70,6 +70,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- metadata-extractor：阶段二提取图片 EXIF/尺寸/GPS 元数据 -->
+        <dependency>
+            <groupId>com.drewnoakes</groupId>
+            <artifactId>metadata-extractor</artifactId>
+            <version>2.19.0</version>
+        </dependency>
+
         <!-- Spring Data JPA -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
