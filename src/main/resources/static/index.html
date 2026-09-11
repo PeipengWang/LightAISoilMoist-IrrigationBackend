@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LightAI 土壤湿度灌溉系统</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f0f4f0;
+    --card-bg: #ffffff;
+    --primary: #2e7d32;
+    --primary-light: #e8f5e9;
+    --accent: #1565c0;
+    --danger: #c62828;
+    --warning: #f57f17;
+    --text: #263238;
+    --text-secondary: #607d8b;
+    --border: #e0e0e0;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ===== Header ===== */
+  header {
+    background: linear-gradient(135deg, #1b5e20, #2e7d32, #388e3c);
+    color: #fff;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    position: sticky; top: 0; z-index: 100;
+  }
+  header h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: 0.5px; }
+  header .subtitle { font-size: 0.85rem; opacity: 0.85; }
+  header .status { display:flex; align-items:center; gap:8px; }
+  .status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .status-dot.online { background:#69f0ae; box-shadow:0 0 6px #69f0ae; }
+  .status-dot.offline { background:#ff5252; }
+
+  /* ===== Tab Navigation ===== */
+  .tab-nav {
+    background: var(--card-bg);
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    gap: 0;
+    padding: 0 24px;
+    position: sticky; top: 72px; z-index: 99;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .tab-btn {
+    padding: 14px 28px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--primary); background: var(--primary-light); }
+  .tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+  }
+
+  /* ===== Tab Panels ===== */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ===== Layout ===== */
+  .container { max-width:1400px; margin:0 auto; padding:20px 24px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .grid-1 { display:grid; grid-template-columns:1fr; gap:20px; }
+  .grid-3 { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; }
+
+  /* ===== Cards ===== */
+  .card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    border: 1px solid var(--border);
+  }
+  .card-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 16px; padding-bottom: 12px;
+    border-bottom: 2px solid var(--primary-light);
+  }
+  .card-header h3 { font-size: 1.05rem; color: var(--primary); font-weight: 600; }
+  .card-header .badge {
+    font-size: 0.75rem; padding: 3px 10px; border-radius: 20px;
+    background: var(--primary-light); color: var(--primary);
+  }
+  .card-header .badge.agri { background: #e3f2fd; color: var(--accent); }
+
+  /* ===== Sensor Grid ===== */
+  .sensor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  .sensor-item {
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+  }
+  .sensor-item:hover { background: #f5f5f5; transform: translateY(-1px); }
+  .sensor-item .label {
+    font-size: 0.75rem; color: var(--text-secondary);
+    margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sensor-item .value {
+    font-size: 1.6rem; font-weight: 700;
+    color: var(--primary); line-height: 1.2;
+  }
+  .sensor-item .unit { font-size: 0.8rem; color: var(--text-secondary); }
+  .sensor-item .time {
+    font-size: 0.7rem; color: #bdbdbd; margin-top: 4px;
+  }
+  .sensor-item.alarm .value { color: var(--danger); }
+  .sensor-item.warning .value { color: var(--warning); }
+
+  /* ===== Controls ===== */
+  .controls { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+  .controls label { display:flex; flex-direction:column; gap:4px; font-size:0.8rem; color:var(--text-secondary); }
+  .controls select, .controls input {
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 0.9rem; background: #fafafa; min-width: 140px;
+  }
+  .btn {
+    padding: 9px 20px; border: none; border-radius: 6px; cursor: pointer;
+    font-size: 0.9rem; font-weight: 500; transition: all 0.2s;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: #1b5e20; }
+  .btn-outline { background: #fff; color: var(--primary); border: 1px solid var(--primary); }
+  .btn-outline:hover { background: var(--primary-light); }
+
+  /* ===== Chart ===== */
+  .chart-container { position:relative; height:350px; }
+  .chart-container canvas { width:100% !important; height:100% !important; }
+
+  /* ===== Loading ===== */
+  .loading { text-align:center; padding:40px; color:var(--text-secondary); }
+  .spinner {
+    display:inline-block; width:32px; height:32px;
+    border:3px solid var(--border); border-top-color: var(--primary);
+    border-radius:50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ===== Table ===== */
+  table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+  th { background:var(--primary-light); color:var(--primary); padding:10px 12px; text-align:left; font-weight:600; }
+  td { padding:8px 12px; border-bottom:1px solid var(--border); }
+  tr:hover td { background:#fafafa; }
+
+  /* ===== Decision Tab Placeholders ===== */
+  .decision-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+  .decision-card .icon {
+    font-size: 2.4rem; margin-bottom: 12px;
+  }
+  .decision-card h4 {
+    font-size: 1rem; color: var(--primary); margin-bottom: 8px;
+  }
+  .decision-card p {
+    font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;
+  }
+  .decision-card .placeholder-badge {
+    display: inline-block; padding: 4px 14px; border-radius: 12px;
+    font-size: 0.72rem; margin-top: 10px;
+    background: #fff3e0; color: #e65100; font-weight: 500;
+  }
+  .decision-metric {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px dashed var(--border);
+  }
+  .decision-metric:last-child { border-bottom: none; }
+  .decision-metric .metric-label { font-size: 0.85rem; color: var(--text-secondary); }
+  .decision-metric .metric-value { font-weight: 600; color: var(--text); }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 900px) {
+    .grid-2, .grid-3 { grid-template-columns:1fr; }
+    header { padding:12px 16px; }
+    header h1 { font-size:1.1rem; }
+    .container { padding:12px; }
+    .tab-btn { padding:12px 16px; font-size:0.85rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🌱 LightAI 土壤湿度灌溉系统</h1>
+    <div class="subtitle">OneNET 双设备实时监控 · 智能灌溉决策</div>
+  </div>
+  <div class="status">
+    <span class="status-dot online" id="statusDot"></span>
+    <span id="statusText">在线</span>
+  </div>
+</header>
+
+<!-- ===== Tab Navigation ===== -->
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="realtime">📡 实时数据显示</button>
+  <button class="tab-btn" data-tab="history">📊 历史数据查询</button>
+  <button class="tab-btn" data-tab="decision">🧠 设备数据决策</button>
+</nav>
+
+<div class="container">
+
+  <!-- ==================== Tab 1: 实时数据显示 ==================== -->
+  <div class="tab-panel active" id="tab-realtime">
+    <div class="grid-2">
+      <!-- DHT11 Panel -->
+      <div class="card">
+        <div class="card-header">
+          <h3>🌡️ 设备: DHT11</h3>
+          <span class="badge">产品: 09B8L0Ji9W</span>
+        </div>
+        <div class="sensor-grid" id="sensors-DHT11">
+          <div class="loading"><div class="spinner"></div><p>加载中...</p></div>
+        </div>
+      </div>
+      <!-- Agriculture Panel -->
+      <div class="card">
+        <div class="card-header">
+          <h3>🌿 设备: device (农业监测)</h3>
+          <span class="badge agri">产品: FeGVC46Lne</span>
+        </div>
+        <div class="sensor-grid" id="sensors-device">
+          <div class="loading"><div class="spinner"></div><p>加载中...</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Tab 2: 历史数据查询 ==================== -->
+  <div class="tab-panel" id="tab-history">
+    <div class="grid-1">
+      <div class="card">
+        <div class="card-header">
+          <h3>📊 历史数据查询</h3>
+        </div>
+        <div class="controls" style="margin-bottom:16px;">
+          <label>设备
+            <select id="histDevice" onchange="onDeviceChange()">
+              <option value="DHT11">DHT11 — 09B8L0Ji9W</option>
+              <option value="device">device — FeGVC46Lne</option>
+            </select>
+          </label>
+          <label>属性
+            <select id="histProperty"></select>
+          </label>
+          <label>时间范围
+            <select id="histRange">
+              <option value="1h">最近1小时</option>
+              <option value="6h">最近6小时</option>
+              <option value="24h" selected>最近24小时</option>
+              <option value="3d">最近3天</option>
+              <option value="7d">最近7天</option>
+            </select>
+          </label>
+          <button class="btn btn-primary" onclick="queryHistory()">🔍 查询</button>
+          <button class="btn btn-outline" onclick="refreshLatest()">🔄 刷新实时数据</button>
+        </div>
+        <div class="chart-container">
+          <canvas id="historyChart"></canvas>
+        </div>
+        <div id="historyTable" style="margin-top:12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Tab 3: 设备数据决策 ==================== -->
+  <div class="tab-panel" id="tab-decision">
+    <!-- 概览卡片 -->
+    <div class="grid-3" style="margin-bottom:20px;">
+      <div class="decision-card">
+        <div class="icon">💧</div>
+        <h4>灌溉决策规则</h4>
+        <p>基于土壤湿度阈值自动触发灌溉，支持多级湿度判断与时段限制</p>
+        <span class="placeholder-badge">功能开发中</span>
+      </div>
+      <div class="decision-card">
+        <div class="icon">📋</div>
+        <h4>决策日志</h4>
+        <p>记录每次灌溉决策的触发条件、执行结果与时间，支持回溯分析</p>
+        <span class="placeholder-badge">功能开发中</span>
+      </div>
+      <div class="decision-card">
+        <div class="icon">⚙️</div>
+        <h4>阈值管理</h4>
+        <p>配置土壤湿度上下限、温度补偿、时段策略等决策参数</p>
+        <span class="placeholder-badge">功能开发中</span>
+      </div>
+    </div>
+
+    <!-- 当前状态面板 (wireframe) -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <h3>📐 决策参数预览</h3>
+          <span class="badge">占位数据</span>
+        </div>
+        <div class="decision-metric">
+          <span class="metric-label">土壤湿度下限阈值</span>
+          <span class="metric-value">30% RH</span>
+        </div>
+        <div class="decision-metric">
+          <span class="metric-label">土壤湿度上限阈值</span>
+          <span class="metric-value">70% RH</span>
+        </div>
+        <div class="decision-metric">
+          <span class="metric-label">灌溉时长</span>
+          <span class="metric-value">15 分钟</span>
+        </div>
+        <div class="decision-metric">
+          <span class="metric-label">灌溉间隔</span>
+          <span class="metric-value">6 小时</span>
+        </div>
+        <div class="decision-metric">
+          <span class="metric-label">允许灌溉时段</span>
+          <span class="metric-value">06:00 - 20:00</span>
+        </div>
+        <div class="decision-metric">
+          <span class="metric-label">温度补偿系数</span>
+          <span class="metric-value">1.0×</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>📝 最近决策记录</h3>
+          <span class="badge">占位数据</span>
+        </div>
+        <table>
+          <tr><th>时间</th><th>触发条件</th><th>决策结果</th><th>状态</th></tr>
+          <tr><td>-- : -- : --</td><td>--</td><td>--</td><td>--</td></tr>
+          <tr><td>-- : -- : --</td><td>--</td><td>--</td><td>--</td></tr>
+          <tr><td>-- : -- : --</td><td>--</td><td>--</td><td>--</td></tr>
+          <tr><td>-- : -- : --</td><td>--</td><td>--</td><td>--</td></tr>
+          <tr><td>-- : -- : --</td><td>--</td><td>--</td><td>--</td></tr>
+        </table>
+        <p style="text-align:center; margin-top:16px; color:var(--text-secondary); font-size:0.85rem;">
+          🚧 决策引擎开发中，敬请期待
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ==================== Tab Switching ====================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    // 切换到历史 tab 时重绘图表（修复隐藏 canvas 尺寸问题）
+    if (btn.dataset.tab === 'history' && historyChart) {
+      historyChart.resize();
+    }
+  });
+});
+
+// ==================== 全局状态 ====================
+let devicesMeta = {};     // 设备属性元数据 {device_name: {ident: {...}}}
+let latestData = {};       // 实时数据缓存 {device_name: {ident: {value, time}}}
+let historyChart = null;   // Chart.js 实例
+
+// ==================== 初始化 ====================
+async function init() {
+  // 加载设备元数据
+  const resp = await fetch('/api/devices');
+  const json = await resp.json();
+  for (const dev of json.devices) {
+    devicesMeta[dev.device_name] = dev.properties;
+  }
+  // 渲染属性选择器
+  onDeviceChange();
+  // 首次加载实时数据
+  await refreshLatest();
+  // 启动 SSE 实时推送 (MQTT事件)
+  startSSE();
+  // 启动 API 定时轮询 (可靠兜底)
+  startPolling();
+}
+
+// ==================== SSE 实时数据 ====================
+function startSSE() {
+  const es = new EventSource('/api/stream');
+  es.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      for (const [dname, props] of Object.entries(data)) {
+        if (latestData[dname]) {
+          Object.assign(latestData[dname], props);
+        } else {
+          latestData[dname] = props;
+        }
+      }
+      renderAllSensors();
+      document.getElementById('statusDot').className = 'status-dot online';
+      document.getElementById('statusText').textContent = '在线 · 实时更新中';
+    } catch (err) {
+      console.error('SSE 解析错误:', err);
+    }
+  };
+  es.onerror = () => {
+    document.getElementById('statusDot').className = 'status-dot offline';
+    document.getElementById('statusText').textContent = '离线 · 尝试重连...';
+  };
+}
+
+// ==================== 渲染传感器面板 ====================
+function renderAllSensors() {
+  for (const [dname, props] of Object.entries(latestData)) {
+    const container = document.getElementById(`sensors-${dname}`);
+    if (!container) continue;
+    const meta = devicesMeta[dname] || {};
+
+    let html = '';
+    for (const [ident, item] of Object.entries(props)) {
+      const m = meta[ident] || {};
+      const name = m.name || item.name || ident;
+      const unit = m.unit || item.unit || '';
+      const val = item.value;
+      const ts = item.time || 0;
+      const timeStr = ts ? new Date(ts).toLocaleTimeString('zh-CN') : '--';
+      const mode = m.mode || item.mode || '只读';
+
+      let cssClass = '';
+      const enumDesc = m.enum_desc || {};
+      if (enumDesc) {
+        const desc = enumDesc[String(val)] || '';
+        if (desc.includes('报警') || desc.includes('异常')) cssClass = 'alarm';
+      }
+
+      let displayVal = (val !== null && val !== undefined) ? val : '--';
+      if (enumDesc && enumDesc[String(val)]) {
+        displayVal = enumDesc[String(val)];
+      }
+
+      html += `
+        <div class="sensor-item ${cssClass}">
+          <div class="label">${name} ${mode === '读写' ? '✏️' : ''}</div>
+          <div class="value">${displayVal}</div>
+          <div class="unit">${unit}</div>
+          <div class="time">${timeStr}</div>
+        </div>`;
+    }
+
+    if (!html) {
+      html = '<div class="loading"><div class="spinner"></div><p>等待数据...</p></div>';
+    }
+    container.innerHTML = html;
+  }
+}
+
+// ==================== 更新最新值(API轮询兜底) ====================
+async function refreshLatest() {
+  for (const dname of ['DHT11', 'device']) {
+    try {
+      const resp = await fetch(`/api/latest/api?device_name=${dname}`);
+      const json = await resp.json();
+      if (json.code === 0 && json.data) {
+        if (!latestData[dname]) latestData[dname] = {};
+        for (const item of json.data) {
+          const ident = item.identifier;
+          latestData[dname][ident] = {
+            value: item.value,
+            time: item.time,
+            name: item.name || ident,
+            unit: '',
+            data_type: item.data_type || '',
+            mode: item.access_mode || '只读',
+            enum_desc: {},
+          };
+        }
+      }
+    } catch (err) {
+      console.error(`API轮询 ${dname} 失败:`, err);
+    }
+  }
+  renderAllSensors();
+}
+
+let pollTimer = null;
+function startPolling() {
+  pollTimer = setInterval(refreshLatest, 10000);
+}
+
+// ==================== 属性选择器联动 ====================
+function onDeviceChange() {
+  const dname = document.getElementById('histDevice').value;
+  const sel = document.getElementById('histProperty');
+  sel.innerHTML = '';
+  const meta = devicesMeta[dname] || {};
+  for (const [ident, prop] of Object.entries(meta)) {
+    const opt = document.createElement('option');
+    opt.value = ident;
+    opt.textContent = `${ident} — ${prop.name} (${prop.unit || '无单位'})`;
+    sel.appendChild(opt);
+  }
+}
+
+// ==================== 查询历史数据 ====================
+async function queryHistory() {
+  const dname = document.getElementById('histDevice').value;
+  const identifier = document.getElementById('histProperty').value;
+  const range = document.getElementById('histRange').value;
+
+  const end = Date.now();
+  let start = end;
+  const rangeMap = { '1h': 3600000, '6h': 21600000, '24h': 86400000, '3d': 259200000, '7d': 604800000 };
+  start = end - (rangeMap[range] || 86400000);
+
+  document.getElementById('historyTable').innerHTML = '<div class="loading"><div class="spinner"></div><p>查询中...</p></div>';
+
+  try {
+    const url = `/api/history?device_name=${dname}&identifier=${identifier}&start=${start}&end=${end}&limit=100`;
+    const resp = await fetch(url);
+    const json = await resp.json();
+
+    if (json.error) {
+      document.getElementById('historyTable').innerHTML = `<p style="color:red;">错误: ${json.error}</p>`;
+      return;
+    }
+
+    const records = (json.data && json.data.data && json.data.data.list) || [];
+    const propName = json.property_name || identifier;
+    const unit = json.unit || '';
+
+    if (records.length === 0) {
+      document.getElementById('historyTable').innerHTML = '<p>该时间段内无数据</p>';
+      if (historyChart) { historyChart.destroy(); historyChart = null; }
+      return;
+    }
+
+    const labels = records.map(r => new Date(parseInt(r.time)).toLocaleString('zh-CN')).reverse();
+    const values = records.map(r => parseFloat(r.value)).reverse();
+
+    const ctx = document.getElementById('historyChart').getContext('2d');
+    if (historyChart) historyChart.destroy();
+    historyChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: `${propName} ${unit}`,
+          data: values,
+          borderColor: '#2e7d32',
+          backgroundColor: 'rgba(46,125,50,0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 2,
+          pointHoverRadius: 5,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: 'top' } },
+        scales: {
+          x: { ticks: { maxTicksLimit: 15, font: { size: 11 } } },
+          y: { ticks: { font: { size: 11 } }, title: { display: true, text: unit } }
+        }
+      }
+    });
+
+    const tableRecords = records.slice(0, 20);
+    let tableHtml = `<p style="margin-top:12px;font-size:0.85rem;color:var(--text-secondary);">共 ${records.length} 条记录，显示最近 ${tableRecords.length} 条:</p>`;
+    tableHtml += `<table><tr><th>时间</th><th>${propName} ${unit}</th></tr>`;
+    for (const r of tableRecords) {
+      const t = new Date(parseInt(r.time)).toLocaleString('zh-CN');
+      tableHtml += `<tr><td>${t}</td><td>${r.value} ${unit}</td></tr>`;
+    }
+    tableHtml += '</table>';
+    document.getElementById('historyTable').innerHTML = tableHtml;
+
+  } catch (err) {
+    document.getElementById('historyTable').innerHTML = `<p style="color:red;">请求失败: ${err.message}</p>`;
+  }
+}
+
+// ==================== 启动 ====================
+init();
+</script>
+</body>
+</html>

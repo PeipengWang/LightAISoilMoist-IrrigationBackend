@@ -1,0 +1,67 @@
+设备密钥：WktwTXB5RGNVOTNrdUwxaFVEbEtvQWpGSEJHMWtrT3Q=
+设备：device
+产品ID: FeGVC46Lne
+鉴权: version=2018-10-31&res=products%2FFeGVC46Lne%2Fdevices%2Fdevice&et=1820020186&method=md5&sign=1WQ6R2muFhgTSN8y57VFPQ%3D%3D
+
+
+发布： $sys/FeGVC46Lne/device/thing/property/post
+订阅： $sys/FeGVC46Lne/device/thing/property/set
+
+
+数据格式（JSON格式）：
+{"id":"123","params":{"A":{"value":7.5},"B":{"value":12},"C":{"value":35},"D":{"value":80},"E":{"value":150},"F":{"value":1},"G":{"value":1},"H":{"value":1},"I":{"value":"7.5"},"J":{"value":"8.5"},"K":{"value":"30"},"L":{"value":"80"}}}
+
+
+对应程序：
+void publishDataToServer(void)
+{
+    char send_buf[1024] = {0};
+    char tmp[1024] = {0};
+    char temp[1024] = {0};
+    memset(send_buf, 0, 1024);
+    memset(tmp, 0, 1024);
+
+    // 构建AT指令：AT+MPUB="<topic>",0,0,"<JSON数据>"
+    strcat(send_buf, "AT+MPUB=\"");
+    strcat(send_buf, mqtt_publish_model_topic); // 主题（全局变量）
+    strcat(send_buf, "\", 0, 0,\"");
+
+    // 组装JSON格式的数据，注意转义双引号为\\22
+    // 示例：{"id":"123","params":{"A":{"value":xx}, ...}}
+    sprintf(tmp, "{\\22id\\22:\\22123\\22,\\22params\\22:{\\22%s\\22:{\\22value\\22:%d},", "A", (int)ph_value);
+    sprintf(temp, "\\22%s\\22:{\\22value\\22:%d},", "B", soil_high);
+    strcat(tmp, temp);
+    sprintf(temp, "\\22%s\\22:{\\22value\\22:%d},", "C", env_temperature);
+    strcat(tmp, temp);
+    sprintf(temp, "\\22%s\\22:{\\22value\\22:%d},", "D", env_humidity);
+    strcat(tmp, temp);
+    sprintf(temp, "\\22%s\\22:{\\22value\\22:%d},", "E", light_intensity);
+    strcat(tmp, temp);
+    sprintf(temp, "\\22%s\\22:{\\22value\\22:%d},", "F", relay_status);
+    strcat(tmp, temp);
+
+    // 报警状态
+    sprintf(temp, "\\22%s\\22:{\\22value\\22:%d},", "G", ph_alarm);
+    strcat(tmp, temp);
+    sprintf(temp, "\\22%s\\22:{\\22value\\22:%d},", "H", soil_alarm);
+    strcat(tmp, temp);
+
+    // 阈值（作为字符串发送）
+    sprintf(temp, "\\22%s\\22:{\\22value\\22:\\22%.01f\\22},", "I", ph_low);
+    strcat(tmp, temp);
+    sprintf(temp, "\\22%s\\22:{\\22value\\22:\\22%.01f\\22},", "J", ph_high);
+    strcat(tmp, temp);
+    sprintf(temp, "\\22%s\\22:{\\22value\\22:\\22%d\\22},", "K", soil_low);
+    strcat(tmp, temp);
+    sprintf(temp, "\\22%s\\22:{\\22value\\22:\\22%d\\22}}}\"\r\n", "L", soil_high);
+    strcat(tmp, temp);
+
+    strcat(send_buf, tmp);              // 合并完整的AT指令
+    usart2_send(send_buf, strlen(send_buf)); // 通过串口2发送给4G模块
+    delay_ms(100);
+}
+
+
+
+
+
