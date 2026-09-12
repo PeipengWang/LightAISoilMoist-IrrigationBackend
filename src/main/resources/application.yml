@@ -28,6 +28,17 @@ spring:
 app:
   upload:
     root-dir: ./data/images
+  # 图片智能分析：调用本地部署的 VLM 图片分析智能体（FastAPI，见 VLMAgent/api_server.py）
+  # 注意：数据智能分析（小沂 AI 助理）仍使用 :8001，与本图片分析智能体 :8008 相互独立。
+  agent:
+    base-url: http://154.8.237.182:8008
+    chat-stream-path: /api/chat/stream
+    session-name: 默认对话
+    # 不传 prompt 时使用的默认提示词；会自动附带图片的拍摄上下文（地块/作物/土壤等）
+    default-prompt: 请分析这张农作物/土壤图片，结合拍摄上下文判断其墒情、湿度、灌溉需求与可能的病虫害风险，并给出结论与建议。
+    connect-timeout-ms: 5000
+    read-timeout-ms: 300000
+    sse-timeout-ms: 300000
 
 server:
   port: 8086

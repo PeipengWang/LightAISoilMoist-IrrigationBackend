@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图片管理与智能分析 - LightAI 土壤湿度灌溉系统</title>
+<style>
+  :root {
+    --bg: #f0f4f0;
+    --card-bg: #ffffff;
+    --primary: #2e7d32;
+    --primary-light: #e8f5e9;
+    --accent: #1565c0;
+    --danger: #c62828;
+    --warning: #f57f17;
+    --success: #2e7d32;
+    --text: #263238;
+    --text-secondary: #607d8b;
+    --border: #e0e0e0;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  /* ===== Header ===== */
+  header {
+    background: linear-gradient(135deg, #1b5e20, #2e7d32, #388e3c);
+    color: #fff;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    position: sticky; top: 0; z-index: 100;
+  }
+  header h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: 0.5px; }
+  header .subtitle { font-size: 0.85rem; opacity: 0.85; }
+  .back-home {
+    color:#fff; text-decoration:none; font-size:0.9rem;
+    border:1px solid rgba(255,255,255,0.5); border-radius:20px;
+    padding:6px 16px; transition:all .2s;
+  }
+  .back-home:hover { background:rgba(255,255,255,0.15); }
+
+  /* ===== Tab Navigation ===== */
+  .tab-nav {
+    background: var(--card-bg);
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    padding: 0 24px;
+    position: sticky; top: 72px; z-index: 99;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .tab-btn {
+    background: none; border: none; outline: none;
+    padding: 14px 22px; font-size: 0.95rem; font-weight: 500;
+    color: var(--text-secondary); cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all .2s;
+  }
+  .tab-btn:hover { color: var(--primary); background: var(--primary-light); }
+  .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 24px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; animation: fadeIn .3s; }
+  @keyframes fadeIn { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+
+  .card {
+    background: var(--card-bg); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 24px; margin-bottom: 20px;
+  }
+  .card h2 { font-size: 1.1rem; color: var(--primary); margin-bottom: 16px; display:flex; align-items:center; gap:8px; }
+  .card h3 { font-size: 0.98rem; color: var(--text); margin-bottom: 12px; }
+
+  label { display:block; font-size:0.85rem; color:var(--text-secondary); margin-bottom:6px; font-weight:500; }
+  input[type=text], input[type=number], select, textarea {
+    width:100%; padding:9px 12px; border:1.5px solid var(--border);
+    border-radius:8px; font-size:0.92rem; color:var(--text);
+    background:#fff; transition:border-color .2s; font-family:inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline:none; border-color: var(--primary); }
+  textarea { resize: vertical; min-height: 74px; }
+
+  .btn {
+    display:inline-flex; align-items:center; gap:6px;
+    padding: 10px 22px; border:none; border-radius:8px; cursor:pointer;
+    font-size: 0.92rem; font-weight: 600; transition: all .2s; font-family:inherit;
+  }
+  .btn-primary { background: var(--primary); color:#fff; }
+  .btn-primary:hover { background:#1b5e20; box-shadow:0 4px 12px rgba(46,125,50,.35); }
+  .btn-primary:disabled { background:#9e9e9e; cursor:not-allowed; box-shadow:none; }
+  .btn-accent { background: var(--accent); color:#fff; }
+  .btn-accent:hover { background:#0d47a1; }
+  .btn-outline { background:#fff; color:var(--primary); border:1.5px solid var(--primary); }
+  .btn-outline:hover { background: var(--primary-light); }
+  .btn-danger-sm { background:#fff; color:var(--danger); border:1px solid var(--danger); border-radius:6px; padding:2px 8px; font-size:0.75rem; cursor:pointer; }
+  .btn-danger-sm:hover { background:#ffebee; }
+  .btn-sm { padding: 6px 14px; font-size: 0.82rem; }
+
+  /* ===== 上传区 ===== */
+  .upload-layout { display:grid; grid-template-columns: 1fr 380px; gap:20px; }
+  .drop-zone {
+    border: 2.5px dashed #a5d6a7; border-radius: var(--radius);
+    background: #f9fbf9; padding: 40px 20px; text-align: center;
+    cursor:pointer; transition: all .2s;
+  }
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--primary); background: var(--primary-light); }
+  .drop-zone .icon { font-size: 3rem; margin-bottom: 8px; }
+  .drop-zone p { color: var(--text-secondary); font-size: 0.9rem; }
+  .drop-zone .hint { font-size: 0.78rem; margin-top:4px; color:#90a4ae; }
+  .preview-box {
+    margin-top:16px; text-align:center; display:none;
+  }
+  .preview-box img { max-width:100%; max-height:320px; border-radius:10px; box-shadow:var(--shadow); }
+  .preview-box .fname { margin-top:8px; font-size:0.85rem; color:var(--text-secondary); }
+
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px 16px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  details.ctx-box { border:1.5px solid var(--border); border-radius:10px; padding: 0 16px; margin-top:4px; background:#fafdfaf7; }
+  details.ctx-box summary { cursor:pointer; font-weight:600; color:var(--primary); padding:12px 0; font-size:0.92rem; list-style:none; }
+  details.ctx-box summary::before { content:"▸ "; }
+  details.ctx-box[open] summary::before { content:"▾ "; }
+  details.ctx-box .inner { padding: 4px 0 16px; }
+
+  .toast {
+    position: fixed; top: 90px; right: 24px; z-index: 999;
+    padding: 12px 20px; border-radius: 10px; color:#fff; font-size:.9rem;
+    box-shadow: 0 6px 18px rgba(0,0,0,.2); animation: fadeIn .25s;
+    max-width: 420px; word-break: break-all;
+  }
+  .toast.ok { background: var(--success); }
+  .toast.err { background: var(--danger); }
+
+  /* ===== 图片库 ===== */
+  .gallery-layout { display:grid; grid-template-columns: 230px 1fr; gap:20px; align-items:start; }
+  .folder-item {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:9px 12px; border-radius:8px; cursor:pointer; font-size:.9rem;
+    transition: background .15s; margin-bottom:2px;
+  }
+  .folder-item:hover { background: var(--primary-light); }
+  .folder-item.active { background: var(--primary); color:#fff; font-weight:600; }
+  .folder-item .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .folder-item.active .btn-danger-sm { color:#ffcdd2; border-color:#ffcdd2; }
+  .folder-item.active .btn-danger-sm:hover { background:rgba(255,255,255,.15); }
+  .new-folder-row { display:flex; gap:8px; margin-bottom:14px; }
+  .new-folder-row input { flex:1; padding:6px 10px; font-size:.85rem; }
+
+  .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+  .toolbar .info { color:var(--text-secondary); font-size:.88rem; }
+  .grid {
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap:16px;
+  }
+  .img-card {
+    background:#fff; border-radius:10px; overflow:hidden; box-shadow:var(--shadow);
+    cursor:pointer; transition: transform .18s, box-shadow .18s; border:1px solid #eef3ee;
+  }
+  .img-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,.13); }
+  .img-card .thumb {
+    width:100%; height:160px; object-fit:cover; display:block; background:#eceff1;
+  }
+  .img-card .meta { padding:10px 12px 12px; }
+  .img-card .meta .name { font-size:.88rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .img-card .meta .sub { font-size:.76rem; color:var(--text-secondary); margin-top:2px; }
+  .badge {
+    display:inline-block; font-size:.7rem; padding:2px 9px; border-radius:10px; font-weight:600; margin-top:6px;
+  }
+  .badge.done { background:#e8f5e9; color:#2e7d32; }
+  .badge.pending { background:#fff3e0; color:#ef6c00; }
+  .empty-tip { text-align:center; color:#90a4ae; padding: 60px 0; font-size:.95rem; }
+  .empty-tip .icon { font-size:2.6rem; display:block; margin-bottom:10px; }
+
+  .pager { display:flex; justify-content:center; align-items:center; gap:12px; margin-top:20px; }
+  .pager button { padding:7px 16px; }
+  .pager .page-info { font-size:.88rem; color:var(--text-secondary); }
+
+  /* 批量选择 + 卡片操作 */
+  .img-card { position: relative; }
+  .img-card .sel-toggle { position:absolute; top:8px; left:8px; z-index:3; background:rgba(255,255,255,.85); border-radius:6px; padding:2px 4px; }
+  .img-card .sel-toggle input { width:18px; height:18px; cursor:pointer; margin:0; }
+  .img-card .card-overlay { position:absolute; top:8px; right:8px; z-index:3; display:flex; gap:6px; }
+  .img-card .card-del {
+    background:rgba(255,255,255,.92); border:none; border-radius:50%;
+    width:30px; height:30px; cursor:pointer; font-size:.95rem; line-height:1;
+    box-shadow:0 1px 4px rgba(0,0,0,.25); color:var(--danger);
+  }
+  .img-card .card-del:hover { background:#ffebee; }
+  .batch-bar { display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;
+    background:var(--primary-light); border:1px solid #c8e6c9; border-radius:10px; padding:10px 14px; }
+  .batch-bar b { color:var(--primary); }
+  .btn-danger { background: var(--danger); color:#fff; }
+  .btn-danger:hover { background:#b71c1c; }
+
+  /* ===== 弹窗 ===== */
+  .modal-mask {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200;
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-mask.show { display:flex; }
+  .modal {
+    background:#fff; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,.25);
+    width:min(980px, 96vw); max-height: 92vh; overflow:auto; padding:24px 26px;
+    animation: fadeIn .22s;
+  }
+  .modal-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; }
+  .modal-head h2 { font-size:1.05rem; color:var(--primary); }
+  .modal-close { background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; line-height:1; }
+  .modal-close:hover { color:var(--danger); }
+  .detail-layout { display:grid; grid-template-columns: minmax(280px, 46%) 1fr; gap:20px; }
+  .detail-layout img.big { width:100%; border-radius:10px; box-shadow:var(--shadow); background:#eceff1; }
+  .kv { display:grid; grid-template-columns: 108px 1fr; gap:4px 10px; font-size:.86rem; }
+  .kv .k { color:var(--text-secondary); }
+  .kv .v { color:var(--text); word-break:break-all; }
+  .kv .v.strong { color:var(--primary); font-weight:600; }
+  .section-title { font-size:.9rem; font-weight:700; color:var(--primary); margin:14px 0 8px; border-left:4px solid var(--primary); padding-left:8px; }
+  .modal-actions { display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; }
+
+  /* ===== 分析页 ===== */
+  .analyze-layout { display:grid; grid-template-columns: 400px 1fr; gap:20px; align-items:start; }
+  .pick-preview { margin-top:12px; text-align:center; display:none; }
+  .pick-preview img { max-width:100%; max-height:220px; border-radius:10px; box-shadow:var(--shadow); }
+  .pick-preview .pname { font-size:.83rem; color:var(--text-secondary); margin-top:6px; }
+
+  .stream-box {
+    background:#123524; color:#e8f5e9; border-radius:10px; padding:18px 20px;
+    min-height: 320px; max-height: 560px; overflow:auto;
+    font-family: 'Cascadia Code', Consolas, 'Courier New', monospace;
+    font-size: 0.88rem; line-height: 1.75; white-space: pre-wrap; word-break: break-word;
+  }
+  .stream-box .cursor { display:inline-block; width:8px; background:#69f0ae; animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .stream-status { display:flex; align-items:center; gap:8px; margin:12px 0; font-size:.86rem; color:var(--text-secondary); }
+  .spinner { width:15px; height:15px; border:2.5px solid var(--primary-light); border-top-color:var(--primary); border-radius:50%; animation:spin .8s linear infinite; display:inline-block; }
+  @keyframes spin { to { transform: rotate(360deg);} }
+
+  .history-item { border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:12px; background:#fafdfaf7; }
+  .history-item .h-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px; }
+  .history-item .h-time { font-size:.78rem; color:var(--text-secondary); }
+  .history-item .h-prompt { font-size:.8rem; color:var(--text-secondary); background:#f1f8f2; border-radius:6px; padding:6px 10px; margin-bottom:8px; }
+  .history-item .h-conclusion { font-size:.9rem; white-space:pre-wrap; word-break:break-word; color:var(--text); }
+  .mode-switch { display:flex; gap:0; border:1.5px solid var(--primary); border-radius:8px; overflow:hidden; width:max-content; margin: 4px 0 14px; }
+  .mode-switch button { border:none; background:#fff; color:var(--primary); padding:8px 18px; cursor:pointer; font-size:.86rem; font-weight:600; }
+  .mode-switch button.active { background:var(--primary); color:#fff; }
+
+  @media (max-width: 980px) {
+    .upload-layout, .gallery-layout, .analyze-layout, .detail-layout { grid-template-columns: 1fr; }
+    .tab-nav { top: 66px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🌿 图片管理与智能分析</h1>
+    <div class="subtitle">LightAI 土壤湿度灌溉系统 · 图片上传 / 图片库 / AI 智能体分析</div>
+  </div>
+  <a class="back-home" href="/index.html">← 返回系统主页</a>
+</header>
+
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="upload">📤 上传图片</button>
+  <button class="tab-btn" data-tab="gallery">🖼️ 图片库</button>
+  <button class="tab-btn" data-tab="analyze">🤖 智能分析</button>
+</nav>
+
+<main>
+
+<!-- ================= 上传 Tab ================= -->
+<section class="tab-panel active" id="panel-upload">
+  <div class="upload-layout">
+    <div class="card">
+      <h2>📤 上传新图片</h2>
+      <div class="drop-zone" id="dropZone">
+        <div class="icon">🖼️</div>
+        <p><b>点击选择</b> 或拖拽图片到此处</p>
+        <div class="hint">支持 jpg / png / webp / gif 等，单张不超过 10MB</div>
+        <input type="file" id="fileInput" accept="image/*" hidden>
+      </div>
+      <div class="preview-box" id="previewBox">
+        <img id="previewImg" alt="预览">
+        <div class="fname" id="previewName"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📝 上传信息</h2>
+      <div class="form-grid">
+        <div>
+          <label>目标目录</label>
+          <select id="upFolder"><option value="">未分类（默认）</option></select>
+        </div>
+        <div>
+          <label>备注</label>
+          <input type="text" id="upRemark" placeholder="选填，如：东三区取样照片">
+        </div>
+      </div>
+
+      <details class="ctx-box" style="margin-top:16px">
+        <summary>田块领域上下文（选填，供 AI 分析时参考）</summary>
+        <div class="inner">
+          <div class="form-grid">
+            <div><label>地块编号</label><input type="text" id="ctx_plotCode" placeholder="如：PLOT-07"></div>
+            <div><label>作物类型</label><input type="text" id="ctx_cropType" placeholder="如：苹果 / 小麦"></div>
+            <div><label>土壤类型</label><input type="text" id="ctx_soilType" placeholder="如：壤土 / 沙土"></div>
+            <div><label>生育期</label><input type="text" id="ctx_growthStage" placeholder="如：花期 / 幼果期"></div>
+            <div><label>灌溉状态</label>
+              <select id="ctx_irrigationStatus">
+                <option value="">未指定</option>
+                <option value="未灌溉">未灌溉</option>
+                <option value="已灌溉">已灌溉</option>
+                <option value="灌溉中">灌溉中</option>
+              </select>
+            </div>
+            <div><label>采样深度</label><input type="text" id="ctx_samplingDepth" placeholder="如：20cm"></div>
+            <div><label>拍摄条件</label><input type="text" id="ctx_captureCondition" placeholder="如：晴天上午 / 顺光"></div>
+            <div><label>操作员</label><input type="text" id="ctx_operator" placeholder="如：张三"></div>
+            <div><label>设备ID</label><input type="text" id="ctx_deviceId" placeholder="如：CAM-002"></div>
+          </div>
+        </div>
+      </details>
+
+      <div style="margin-top:20px; display:flex; gap:10px;">
+        <button class="btn btn-primary" id="btnUpload" disabled>⬆ 上传图片</button>
+        <button class="btn btn-outline" id="btnResetForm">重置</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 图片库 Tab ================= -->
+<section class="tab-panel" id="panel-gallery">
+  <div class="gallery-layout">
+    <div class="card">
+      <h2>📁 图片目录</h2>
+      <div class="new-folder-row">
+        <input type="text" id="newFolderName" placeholder="新目录名称">
+        <button class="btn btn-primary btn-sm" id="btnNewFolder">新建</button>
+      </div>
+      <div id="folderList">
+        <div class="folder-item active" data-folder="">
+          <span class="name">📷 全部图片</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">🖼️ 图片列表</h2>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <div class="info" id="galleryInfo">共 0 张</div>
+          <button class="btn btn-outline btn-sm" id="btnBatchMode">☑ 批量管理</button>
+        </div>
+      </div>
+      <div class="batch-bar" id="batchBar" style="display:none">
+        <span>已选 <b id="selCount">0</b> 张</span>
+        <button class="btn btn-primary btn-sm" id="btnBatchArchive">📁 批量归档</button>
+        <button class="btn btn-danger btn-sm" id="btnBatchDelete">🗑 批量删除</button>
+        <button class="btn btn-outline btn-sm" id="btnBatchCancel">取消选择</button>
+      </div>
+      <div class="grid" id="imageGrid"></div>
+      <div class="pager" id="pager" style="display:none">
+        <button class="btn btn-outline btn-sm" id="btnPrev">上一页</button>
+        <span class="page-info" id="pageInfo"></span>
+        <button class="btn btn-outline btn-sm" id="btnNext">下一页</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 智能分析 Tab ================= -->
+<section class="tab-panel" id="panel-analyze">
+  <div class="analyze-layout">
+    <div>
+      <div class="card">
+        <h2>🤖 分析设置</h2>
+        <label>选择图片</label>
+        <select id="anImageSelect"><option value="">— 请选择图片 —</option></select>
+        <div class="pick-preview" id="anPreview">
+          <img id="anPreviewImg" alt="预览">
+          <div class="pname" id="anPreviewName"></div>
+        </div>
+
+        <div style="margin-top:14px">
+          <label>分析提示词（留空使用默认：结合拍摄上下文判断墒情 / 灌溉需求 / 病虫害风险）</label>
+          <textarea id="anPrompt" placeholder="例如：请重点判断该图片中土壤的干旱程度，并给出灌溉量建议。"></textarea>
+        </div>
+        <div style="margin-top:10px">
+          <label>智能体会话名（选填）</label>
+          <input type="text" id="anSession" placeholder="留空使用后端默认会话">
+        </div>
+
+        <div class="mode-switch" id="modeSwitch">
+          <button class="active" data-mode="stream">⚡ 流式（实时输出）</button>
+          <button data-mode="sync">⏳ 同步（等待完整结论）</button>
+        </div>
+
+        <button class="btn btn-accent" id="btnAnalyze" style="width:100%; justify-content:center">🚀 开始智能分析</button>
+        <div style="font-size:.78rem; color:#90a4ae; margin-top:8px;">
+          分析结论自动保存至历史记录（image_analysis），同一图片可多次分析对比。
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>💬 分析结论</h2>
+        <div class="stream-status" id="anStatus" style="display:none">
+          <span class="spinner" id="anSpinner"></span>
+          <span id="anStatusText">正在连接智能体…</span>
+        </div>
+        <div class="stream-box" id="streamBox">
+          选择图片后点击「开始智能分析」，分析过程与结论将在此实时展示…
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🕘 该图片的分析历史</h2>
+        <div id="historyList"><div class="empty-tip"><span class="icon">🗂️</span>暂无分析历史</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ================= 图片详情弹窗 ================= -->
+<div class="modal-mask" id="detailModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="dmTitle">图片详情</h2>
+      <button class="modal-close" id="dmClose">×</button>
+    </div>
+    <div class="detail-layout">
+      <div><img class="big" id="dmImg" alt="图片预览"></div>
+      <div>
+        <div class="section-title">基础信息</div>
+        <div class="kv" id="dmBase"></div>
+        <div class="section-title">采集元数据（EXIF）</div>
+        <div class="kv" id="dmExif"></div>
+        <div class="section-title">田块领域上下文</div>
+        <div class="kv" id="dmCtx"></div>
+        <div class="modal-actions">
+          <button class="btn btn-accent" id="dmAnalyze">🤖 去智能分析</button>
+          <button class="btn btn-outline" id="dmArchive">📁 归档到目录</button>
+          <button class="btn btn-danger" id="dmDelete">🗑 删除图片</button>
+          <button class="btn btn-outline" id="dmRefreshAnalyses">🔄 刷新分析历史</button>
+        </div>
+        <div id="dmAnalyses"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 归档目录选择弹窗 ================= -->
+<div class="modal-mask" id="archiveModal">
+  <div class="modal" style="width:min(440px, 94vw)">
+    <div class="modal-head">
+      <h2>📁 选择归档目录</h2>
+      <button class="modal-close" id="archiveClose">×</button>
+    </div>
+    <label>目标目录（选「未分类」将移出当前目录）</label>
+    <select id="archiveFolder" style="margin-top:8px"></select>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="archiveConfirm">✅ 确认归档</button>
+      <button class="btn btn-outline" id="archiveCancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ==================== 通用工具 ==================== */
+const $ = (id) => document.getElementById(id);
+
+function toast(msg, ok = true) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + (ok ? 'ok' : 'err');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+async function api(url, options = {}) {
+  const resp = await fetch(url, options);
+  const json = await resp.json().catch(() => ({ code: -1, message: '响应解析失败' }));
+  if (json.code !== 200) throw new Error(json.message || ('HTTP ' + resp.status));
+  return json.data;
+}
+
+function fmtSize(bytes) {
+  if (bytes == null) return '-';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+}
+function fmtTime(s) {
+  if (!s) return '-';
+  return String(s).replace('T', ' ').slice(0, 19);
+}
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ==================== Tab 切换 ==================== */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    $('panel-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'gallery') loadGallery();
+    if (btn.dataset.tab === 'analyze') { refreshAnalyzeSelect(); loadHistory(); }
+  });
+});
+
+/* ==================== 目录管理 ==================== */
+let folders = [];
+
+async function loadFolders() {
+  try {
+    folders = await api('/api/image-folders') || [];
+  } catch (e) { folders = []; }
+  // 上传目录下拉
+  const up = $('upFolder');
+  up.innerHTML = '<option value="">未分类（默认）</option>' +
+    folders.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  // 图片库侧边栏
+  const list = $('folderList');
+  const current = list.querySelector('.folder-item.active')?.dataset.folder ?? '';
+  list.innerHTML = `<div class="folder-item ${current === '' ? 'active' : ''}" data-folder="">
+                      <span class="name">📷 全部图片</span></div>` +
+    folders.map(f => `<div class="folder-item ${String(current) === String(f.id) ? 'active' : ''}" data-folder="${f.id}">
+                        <span class="name" title="${esc(f.name)}">📁 ${esc(f.name)}</span>
+                        <button class="btn-danger-sm" data-del="${f.id}" title="删除目录（图片转为未分类）">删除</button>
+                      </div>`).join('');
+  list.querySelectorAll('.folder-item').forEach(item => {
+    item.addEventListener('click', (ev) => {
+      if (ev.target.dataset.del !== undefined) return;
+      list.querySelectorAll('.folder-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      galleryState.folderId = item.dataset.folder || null;
+      galleryState.page = 0;
+      loadGallery();
+    });
+  });
+  list.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      if (!confirm('确定删除该目录吗？目录下图片将转为「未分类」，文件不会被删除。')) return;
+      try {
+        await api('/api/image-folders/' + btn.dataset.del, { method: 'DELETE' });
+        toast('目录已删除');
+        if (String(galleryState.folderId) === String(btn.dataset.del)) {
+          galleryState.folderId = null; galleryState.page = 0;
+        }
+        loadFolders(); loadGallery();
+      } catch (e) { toast('删除失败：' + e.message, false); }
+    });
+  });
+}
+
+$('btnNewFolder').addEventListener('click', async () => {
+  const name = $('newFolderName').value.trim();
+  if (!name) { toast('请输入目录名称', false); return; }
+  try {
+    await api('/api/image-folders?name=' + encodeURIComponent(name), { method: 'POST' });
+    $('newFolderName').value = '';
+    toast('目录创建成功');
+    loadFolders();
+  } catch (e) { toast('创建失败：' + e.message, false); }
+});
+
+/* ==================== 上传 ==================== */
+const dropZone = $('dropZone'), fileInput = $('fileInput');
+let pickedFile = null;
+
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { if (fileInput.files.length) pickFile(fileInput.files[0]); });
+['dragover', 'dragenter'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('dragover'); }));
+dropZone.addEventListener('drop', e => { if (e.dataTransfer.files.length) pickFile(e.dataTransfer.files[0]); });
+
+function pickFile(file) {
+  if (!file.type.startsWith('image/')) { toast('请选择图片文件', false); return; }
+  if (file.size > 10 * 1024 * 1024) { toast('图片不能超过 10MB', false); return; }
+  pickedFile = file;
+  const url = URL.createObjectURL(file);
+  $('previewImg').src = url;
+  $('previewName').textContent = `${file.name}（${fmtSize(file.size)}）`;
+  $('previewBox').style.display = 'block';
+  $('btnUpload').disabled = false;
+}
+
+$('btnResetForm').addEventListener('click', () => {
+  pickedFile = null; fileInput.value = '';
+  $('previewBox').style.display = 'none';
+  $('btnUpload').disabled = true;
+  ['upRemark','ctx_plotCode','ctx_cropType','ctx_soilType','ctx_growthStage','ctx_samplingDepth','ctx_captureCondition','ctx_operator','ctx_deviceId']
+    .forEach(id => $(id).value = '');
+  $('upFolder').value = ''; $('ctx_irrigationStatus').value = '';
+});
+
+$('btnUpload').addEventListener('click', async () => {
+  if (!pickedFile) return;
+  const fd = new FormData();
+  fd.append('file', pickedFile);
+  const fields = {
+    folderId: $('upFolder').value, remark: $('upRemark').value,
+    plotCode: $('ctx_plotCode').value, cropType: $('ctx_cropType').value,
+    soilType: $('ctx_soilType').value, growthStage: $('ctx_growthStage').value,
+    irrigationStatus: $('ctx_irrigationStatus').value, samplingDepth: $('ctx_samplingDepth').value,
+    captureCondition: $('ctx_captureCondition').value, operator: $('ctx_operator').value,
+    deviceId: $('ctx_deviceId').value
+  };
+  Object.entries(fields).forEach(([k, v]) => { if (v !== '' && v != null) fd.append(k, v); });
+
+  const btn = $('btnUpload');
+  btn.disabled = true; btn.textContent = '⏳ 上传中…';
+  try {
+    const rec = await api('/api/images/upload', { method: 'POST', body: fd });
+    toast(`上传成功（ID: ${rec.id}），已自动提取图片元数据`);
+    $('btnResetForm').click();
+    galleryState.page = 0;
+    loadGallery();
+  } catch (e) {
+    toast('上传失败：' + e.message, false);
+    btn.disabled = false;
+  } finally {
+    btn.textContent = '⬆ 上传图片';
+    if (pickedFile) btn.disabled = false;
+  }
+});
+
+/* ==================== 图片库 ==================== */
+const galleryState = { folderId: null, page: 0, size: 20, totalPages: 0 };
+let galleryImages = [];
+
+async function loadGallery() {
+  const grid = $('imageGrid');
+  let params = `?page=${galleryState.page}&size=${galleryState.size}`;
+  if (galleryState.folderId) params += `&folderId=${galleryState.folderId}`;
+  try {
+    const data = await api('/api/images' + params);
+    galleryImages = data.content || [];
+    galleryState.totalPages = data.totalPages || 0;
+    $('galleryInfo').textContent = `共 ${data.totalElements ?? galleryImages.length} 张 · 第 ${(data.page ?? 0) + 1}/${Math.max(data.totalPages ?? 1, 1)} 页`;
+    renderGallery();
+  } catch (e) {
+    grid.innerHTML = `<div class="empty-tip" style="grid-column:1/-1"><span class="icon">⚠️</span>加载失败：${esc(e.message)}</div>`;
+  }
+}
+
+function renderGallery() {
+  const grid = $('imageGrid');
+  if (!galleryImages.length) {
+    grid.innerHTML = '<div class="empty-tip" style="grid-column:1/-1"><span class="icon">🌾</span>暂无图片，请先上传</div>';
+    $('pager').style.display = 'none';
+    return;
+  }
+  grid.innerHTML = galleryImages.map(r => `
+    <div class="img-card" data-id="${r.id}">
+      ${batchMode ? `<label class="sel-toggle"><input type="checkbox" class="card-check" data-id="${r.id}" ${selectedIds.has(r.id) ? 'checked' : ''}></label>` : ''}
+      <div class="card-overlay">
+        <button class="card-del" data-del="${r.id}" title="删除图片">🗑</button>
+      </div>
+      <img class="thumb" src="/api/images/${r.id}/file" loading="lazy" alt="${esc(r.originalName)}"
+           onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;100&quot; height=&quot;100&quot;><rect width=&quot;100&quot; height=&quot;100&quot; fill=&quot;%23eceff1&quot;/><text x=&quot;50&quot; y=&quot;55&quot; font-size=&quot;12&quot; text-anchor=&quot;middle&quot; fill=&quot;%2390a4ae&quot;>加载失败</text></svg>'">
+      <div class="meta">
+        <div class="name" title="${esc(r.originalName)}">${esc(r.originalName)}</div>
+        <div class="sub">${fmtSize(r.size)}${r.width && r.height ? ' · ' + r.width + '×' + r.height : ''}</div>
+        <div class="sub">${fmtTime(r.createdAt)}</div>
+        <span class="badge ${r.analyzed ? 'done' : 'pending'}">${r.analyzed ? '✓ 已分析' : '待分析'}</span>
+      </div>
+    </div>`).join('');
+  // 卡片点击 / 删除 / 勾选统一在下方 grid 委托处理
+
+  $('pager').style.display = 'flex';
+  $('pageInfo').textContent = `第 ${galleryState.page + 1} / ${Math.max(galleryState.totalPages, 1)} 页`;
+  $('btnPrev').disabled = galleryState.page <= 0;
+  $('btnNext').disabled = galleryState.page >= galleryState.totalPages - 1;
+}
+
+$('btnPrev').addEventListener('click', () => { if (galleryState.page > 0) { galleryState.page--; loadGallery(); } });
+$('btnNext').addEventListener('click', () => { if (galleryState.page < galleryState.totalPages - 1) { galleryState.page++; loadGallery(); } });
+
+/* ==================== 批量管理 / 删除 / 归档 ==================== */
+let batchMode = false;
+const selectedIds = new Set();
+let pendingArchiveIds = [];
+
+function updateSelCount() { $('selCount').textContent = selectedIds.size; }
+
+$('btnBatchMode').addEventListener('click', () => {
+  batchMode = !batchMode;
+  $('btnBatchMode').textContent = batchMode ? '✖ 退出批量' : '☑ 批量管理';
+  $('batchBar').style.display = batchMode ? 'flex' : 'none';
+  if (!batchMode) { selectedIds.clear(); updateSelCount(); }
+  renderGallery();
+});
+
+$('btnBatchCancel').addEventListener('click', () => {
+  selectedIds.clear(); updateSelCount(); renderGallery();
+});
+
+// 卡片点击 / 删除 / 勾选委托
+$('imageGrid').addEventListener('click', e => {
+  const del = e.target.closest('[data-del]');
+  if (del) { deleteImage(Number(del.dataset.del)); return; }
+  if (e.target.closest('.sel-toggle')) return;
+  const card = e.target.closest('.img-card');
+  if (card) openDetail(Number(card.dataset.id));
+});
+$('imageGrid').addEventListener('change', e => {
+  const cb = e.target.closest('.card-check');
+  if (!cb) return;
+  const id = Number(cb.dataset.id);
+  if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+  updateSelCount();
+});
+
+async function deleteImage(id) {
+  if (!confirm('确定删除该图片吗？图片文件与已保存的分析结论将一并删除，不可恢复。')) return;
+  try {
+    await api('/api/images/' + id, { method: 'DELETE' });
+    toast('图片已删除');
+    selectedIds.delete(id);
+    loadGallery();
+  } catch (e) { toast('删除失败：' + e.message, false); }
+}
+
+$('btnBatchDelete').addEventListener('click', async () => {
+  if (!selectedIds.size) { toast('请先选择图片', false); return; }
+  if (!confirm(`确定批量删除选中的 ${selectedIds.size} 张图片吗？文件与分析结论将一并删除，不可恢复。`)) return;
+  try {
+    const n = await api('/api/images/batch-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [...selectedIds] })
+    });
+    toast(`已删除 ${n} 张图片`);
+    selectedIds.clear(); updateSelCount();
+    batchMode = false; $('btnBatchMode').textContent = '☑ 批量管理'; $('batchBar').style.display = 'none';
+    loadGallery();
+  } catch (e) { toast('批量删除失败：' + e.message, false); }
+});
+
+$('btnBatchArchive').addEventListener('click', () => {
+  if (!selectedIds.size) { toast('请先选择图片', false); return; }
+  pendingArchiveIds = [...selectedIds];
+  openArchiveModal();
+});
+
+/* 归档目录选择弹窗 */
+function renderArchiveFolderOptions() {
+  const sel = $('archiveFolder');
+  sel.innerHTML = '<option value="">未分类（移出目录）</option>' +
+    folders.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+}
+function openArchiveModal() {
+  renderArchiveFolderOptions();
+  $('archiveModal').classList.add('show');
+}
+$('archiveClose').addEventListener('click', () => $('archiveModal').classList.remove('show'));
+$('archiveCancel').addEventListener('click', () => $('archiveModal').classList.remove('show'));
+$('archiveModal').addEventListener('click', e => { if (e.target === $('archiveModal')) $('archiveModal').classList.remove('show'); });
+$('archiveConfirm').addEventListener('click', async () => {
+  const folderId = $('archiveFolder').value ? Number($('archiveFolder').value) : null;
+  const ids = pendingArchiveIds;
+  if (!ids.length) { toast('没有可归档的图片', false); return; }
+  try {
+    const n = await api('/api/images/batch-move', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, folderId })
+    });
+    const fname = folderId ? '到「' + (folders.find(f => f.id === folderId)?.name || '') + '」' : '（已移出目录）';
+    toast(`已归档 ${n} 张图片${fname}`);
+    $('archiveModal').classList.remove('show');
+    selectedIds.clear(); updateSelCount();
+    loadGallery();
+  } catch (e) { toast('归档失败：' + e.message, false); }
+});
+
+/* 详情弹窗：归档 + 删除 */
+$('dmArchive').addEventListener('click', () => {
+  if (!detailRecord) return;
+  pendingArchiveIds = [detailRecord.id];
+  openArchiveModal();
+});
+$('dmDelete').addEventListener('click', async () => {
+  if (!detailRecord) return;
+  if (!confirm('确定删除该图片吗？图片文件与已保存的分析结论将一并删除，不可恢复。')) return;
+  try {
+    await api('/api/images/' + detailRecord.id, { method: 'DELETE' });
+    toast('图片已删除');
+    $('detailModal').classList.remove('show');
+    loadGallery();
+  } catch (e) { toast('删除失败：' + e.message, false); }
+});
+
+/* ==================== 详情弹窗 ==================== */
+let detailRecord = null;
+
+async function openDetail(id) {
+  try {
+    detailRecord = await api('/api/images/' + id);
+  } catch (e) { toast('加载详情失败：' + e.message, false); return; }
+  const r = detailRecord;
+  $('dmTitle').textContent = r.originalName;
+  $('dmImg').src = `/api/images/${r.id}/file`;
+
+  const folderName = folders.find(f => f.id === r.folderId)?.name || '未分类';
+  $('dmBase').innerHTML = `
+    <div class="k">图片ID</div><div class="v strong">#${r.id}</div>
+    <div class="k">存储名</div><div class="v">${esc(r.storedName || '-')}</div>
+    <div class="k">所属目录</div><div class="v">${esc(folderName)}</div>
+    <div class="k">大小</div><div class="v">${fmtSize(r.size)}</div>
+    <div class="k">格式</div><div class="v">${esc(r.format || (r.contentType || '-'))}</div>
+    <div class="k">存储方式</div><div class="v">${esc(r.storageType || 'LOCAL')}</div>
+    <div class="k">上传时间</div><div class="v">${fmtTime(r.createdAt)}</div>
+    <div class="k">备注</div><div class="v">${esc(r.remark || '-')}</div>
+    <div class="k">分析状态</div><div class="v">${r.analyzed ? '✅ 已分析（' + esc(r.analysisStatus || 'DONE') + '）' : '⏳ 待分析'}</div>`;
+
+  const exifRow = (k, v, unit = '') => v != null && v !== '' ? `<div class="k">${k}</div><div class="v">${esc(v)}${unit}</div>` : '';
+  const exifRows =
+    exifRow('分辨率', r.width && r.height ? r.width + ' × ' + r.height : null) +
+    exifRow('拍摄时间', fmtTime(r.dateTaken)) +
+    exifRow('相机品牌', r.cameraMake) + exifRow('相机型号', r.cameraModel) +
+    (r.gpsLatitude != null ? `<div class="k">GPS 纬度</div><div class="v">${r.gpsLatitude}</div>` : '') +
+    (r.gpsLongitude != null ? `<div class="k">GPS 经度</div><div class="v">${r.gpsLongitude}</div>` : '') +
+    (r.gpsAltitude != null ? `<div class="k">GPS 海拔</div><div class="v">${r.gpsAltitude} m</div>` : '');
+  $('dmExif').innerHTML = exifRows ||
+    '<div class="k" style="grid-column:1/-1;color:#b0bec5">未提取到 EXIF 信息</div>';
+
+  const ctx = [
+    ['地块编号', r.plotCode], ['作物类型', r.cropType], ['土壤类型', r.soilType],
+    ['生育期', r.growthStage], ['灌溉状态', r.irrigationStatus], ['采样深度', r.samplingDepth],
+    ['拍摄条件', r.captureCondition], ['操作员', r.operator], ['设备ID', r.deviceId]
+  ].filter(([, v]) => v != null && v !== '');
+  $('dmCtx').innerHTML = ctx.length
+    ? ctx.map(([k, v]) => `<div class="k">${k}</div><div class="v">${esc(v)}</div>`).join('')
+    : '<div class="k" style="grid-column:1/-1;color:#b0bec5">未填写（可在上传时补充，供 AI 分析参考）</div>';
+
+  $('detailModal').classList.add('show');
+  loadDetailAnalyses(id);
+}
+
+$('dmClose').addEventListener('click', () => $('detailModal').classList.remove('show'));
+$('detailModal').addEventListener('click', e => { if (e.target === $('detailModal')) $('detailModal').classList.remove('show'); });
+$('dmRefreshAnalyses').addEventListener('click', () => { if (detailRecord) loadDetailAnalyses(detailRecord.id); });
+
+$('dmAnalyze').addEventListener('click', () => {
+  if (!detailRecord) return;
+  $('detailModal').classList.remove('show');
+  document.querySelector('[data-tab="analyze"]').click();
+  $('anImageSelect').value = String(detailRecord.id);
+  onAnalyzeSelectChange();
+});
+
+async function loadDetailAnalyses(id) {
+  const box = $('dmAnalyses');
+  try {
+    const list = await api(`/api/images/${id}/analyses`) || [];
+    box.innerHTML = list.length
+      ? `<div class="section-title" style="margin-top:18px">分析历史（${list.length} 条）</div>` +
+        list.map(a => `
+          <div class="history-item">
+            <div class="h-head"><span class="badge done">#${a.id} · ${esc(a.status || 'DONE')}</span>
+              <span class="h-time">${fmtTime(a.createdAt)} · 会话：${esc(a.sessionName || '-')}</span></div>
+            <div class="h-prompt">提示词：${esc(a.prompt || '-')}</div>
+            <div class="h-conclusion">${esc(a.conclusion || '(无结论)')}</div>
+          </div>`).join('')
+      : '<div class="section-title" style="margin-top:18px">分析历史</div><div class="empty-tip" style="padding:24px 0">暂无分析记录</div>';
+  } catch (e) {
+    box.innerHTML = `<div class="empty-tip" style="padding:24px 0">历史加载失败：${esc(e.message)}</div>`;
+  }
+}
+
+/* ==================== 智能分析 ==================== */
+let analyzeMode = 'stream';
+let analyzing = false;
+
+$('modeSwitch').querySelectorAll('button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $('modeSwitch').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    analyzeMode = btn.dataset.mode;
+  });
+});
+
+async function refreshAnalyzeSelect() {
+  const sel = $('anImageSelect');
+  const prev = sel.value;
+  try {
+    const data = await api('/api/images?page=0&size=100');
+    const list = data.content || [];
+    sel.innerHTML = '<option value="">— 请选择图片 —</option>' +
+      list.map(r => `<option value="${r.id}">#${r.id} · ${esc(r.originalName)}${r.analyzed ? '（已分析）' : ''}</option>`).join('');
+    if (prev && list.some(r => String(r.id) === prev)) sel.value = prev;
+  } catch (e) {
+    sel.innerHTML = '<option value="">图片列表加载失败</option>';
+  }
+}
+
+$('anImageSelect').addEventListener('change', onAnalyzeSelectChange);
+function onAnalyzeSelectChange() {
+  const id = $('anImageSelect').value;
+  if (!id) { $('anPreview').style.display = 'none'; $('historyList').innerHTML = '<div class="empty-tip"><span class="icon">🗂️</span>暂无分析历史</div>'; return; }
+  const rec = galleryImages.find(r => String(r.id) === String(id));
+  $('anPreviewImg').src = `/api/images/${id}/file`;
+  $('anPreviewName').textContent = rec ? rec.originalName : `图片 #${id}`;
+  $('anPreview').style.display = 'block';
+  loadHistory();
+}
+
+async function loadHistory() {
+  const id = $('anImageSelect').value;
+  const box = $('historyList');
+  if (!id) return;
+  try {
+    const list = await api(`/api/images/${id}/analyses`) || [];
+    box.innerHTML = list.length
+      ? list.map(a => `
+          <div class="history-item">
+            <div class="h-head"><span class="badge done">#${a.id} · ${esc(a.status || 'DONE')}</span>
+              <span class="h-time">${fmtTime(a.createdAt)} · 会话：${esc(a.sessionName || '-')}</span></div>
+            <div class="h-prompt">提示词：${esc(a.prompt || '-')}</div>
+            <div class="h-conclusion">${esc(a.conclusion || '(无结论)')}</div>
+          </div>`).join('')
+      : '<div class="empty-tip"><span class="icon">🗂️</span>暂无分析历史</div>';
+  } catch (e) {
+    box.innerHTML = `<div class="empty-tip"><span class="icon">⚠️</span>加载失败：${esc(e.message)}</div>`;
+  }
+}
+
+function setStreamStatus(text, show = true) {
+  $('anStatus').style.display = show ? 'flex' : 'none';
+  $('anSpinner').style.display = 'inline-block';
+  $('anStatusText').textContent = text;
+}
+
+$('btnAnalyze').addEventListener('click', async () => {
+  const id = $('anImageSelect').value;
+  if (!id) { toast('请先选择要分析的图片', false); return; }
+  if (analyzing) { toast('当前分析进行中，请稍候', false); return; }
+
+  const prompt = $('anPrompt').value.trim();
+  const session = $('anSession').value.trim();
+  const qs = new URLSearchParams();
+  if (prompt) qs.set('prompt', prompt);
+  if (session) qs.set('sessionName', session);
+  const query = qs.toString();
+
+  analyzing = true;
+  const btn = $('btnAnalyze');
+  btn.disabled = true; btn.textContent = '⏳ 分析中…';
+  const box = $('streamBox');
+  box.textContent = '';
+
+  try {
+    if (analyzeMode === 'stream') {
+      await analyzeStream(id, query, box);
+    } else {
+      await analyzeSync(id, query, box);
+    }
+    toast('分析完成，结论已保存');
+  } catch (e) {
+    box.appendChild(document.createTextNode('\n\n❌ 分析失败：' + e.message));
+    toast('分析失败：' + e.message, false);
+  } finally {
+    analyzing = false;
+    btn.disabled = false; btn.textContent = '🚀 开始智能分析';
+    setStreamStatus('', false);
+    loadHistory();
+    loadGallery();
+  }
+});
+
+/* 同步分析 */
+async function analyzeSync(id, query, box) {
+  setStreamStatus('已提交分析请求，等待智能体返回完整结论（可能需要 1-3 分钟）…');
+  const data = await api(`/api/images/${id}/analyze` + (query ? '?' + query : ''), { method: 'POST' });
+  box.textContent = '';
+  box.appendChild(document.createTextNode('【分析结论】\n' + (data.conclusion || '(无结论)')));
+}
+
+/* 流式分析：POST SSE，用 fetch + ReadableStream 解析 */
+async function analyzeStream(id, query, box) {
+  setStreamStatus('正在连接智能体…');
+  const resp = await fetch(`/api/images/${id}/analyze/stream` + (query ? '?' + query : ''), {
+    method: 'POST',
+    headers: { 'Accept': 'text/event-stream' }
+  });
+  if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let received = false;
+
+  const appendText = (txt) => {
+    box.appendChild(document.createTextNode(txt));
+    box.scrollTop = box.scrollHeight;
+  };
+
+  box.textContent = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop(); // 最后一段可能不完整，留在缓冲区
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if (!payload) continue;
+      let evt;
+      try { evt = JSON.parse(payload); } catch (e) { continue; }
+      if (evt.chunk != null && evt.chunk !== '') {
+        if (!received) { received = true; setStreamStatus('智能体分析中，实时输出…'); }
+        appendText(evt.chunk);
+      } else if (evt.done) {
+        $('anStatus').style.display = 'flex';
+        $('anSpinner').style.display = 'none';
+        $('anStatusText').textContent = '✅ 分析完成，结论已保存至历史记录';
+        box.textContent = '';
+        appendText('【分析结论】\n' + (evt.full_response || ''));
+        return;
+      } else if (evt.error) {
+        throw new Error(evt.error);
+      }
+    }
+  }
+  // 流正常关闭但未收到 done 事件
+  if (!received) throw new Error('智能体连接已关闭且未返回任何内容');
+}
+
+/* ==================== 初始化 ==================== */
+loadFolders().then(() => loadGallery());
+refreshAnalyzeSelect();
+</script>
+</body>
+</html>
